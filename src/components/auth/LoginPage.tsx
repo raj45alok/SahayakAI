@@ -11,7 +11,7 @@ import { Mail, Lock, ArrowLeft } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { useLanguage } from '../i18n/LanguageContext';
 import { firebaseAuthService } from '../../services/firebaseAuth';
-import { dynamoDBService } from '../../services/dynamoDBService';
+import { api } from '../../services/api'; // NEW: Import api service
 
 export function LoginPage() {
   const { t } = useLanguage();
@@ -43,34 +43,23 @@ export function LoginPage() {
       const firebaseUser = await firebaseAuthService.loginWithEmail(email, password);
       console.log('Firebase login successful:', firebaseUser.uid);
       
-      // Step 2: Check if user exists in DynamoDB
-      let dbUser = await dynamoDBService.getUserByFirebaseUid(firebaseUser.uid);
+      // Step 2: ✅ Get user from DynamoDB via Lambda API
+      const response = await api.getUserByFirebaseUid(firebaseUser.uid);
       
-      // Step 3: If new user, create in DynamoDB
-      if (!dbUser) {
-        console.log('New user, creating in DynamoDB...');
-        
-        const additionalData = userType === 'teacher' 
-          ? { 
-              subjectSpecialization: ['Mathematics', 'Science'],
-              phone: '+91 9876543210'
-            }
-          : { 
-              classId: '7A',
-              phone: '+91 9876543210'
-            };
-        
-        dbUser = await dynamoDBService.saveUser(firebaseUser, userType, additionalData);
-        toast.success('Account created successfully in database!');
-      } else {
-        console.log('Existing user found in DynamoDB:', dbUser.userId);
+      if (!response.data) {
+        toast.error('User not found. Please register first.');
+        setIsLoading(false);
+        return;
       }
+
+      const dbUser = response.data;
+      console.log('User found in DynamoDB:', dbUser.userId);
       
-      // Step 4: Prepare user data for app context
+      // Step 3: Prepare user data for app context
       const userData = {
         id: dbUser.userId, // Use DynamoDB userId (STU-xxx or TCH-xxx)
         firebaseUid: firebaseUser.uid,
-        name: dbUser.name || firebaseUser.displayName || (dbUser.role === 'teacher' ? 'Teacher' : 'Student'),
+        name: dbUser.displayName || firebaseUser.displayName || (dbUser.role === 'teacher' ? 'Teacher' : 'Student'),
         email: dbUser.email,
         type: dbUser.role,
         ...(dbUser.role === 'teacher' && {
@@ -85,11 +74,11 @@ export function LoginPage() {
         })
       };
       
-      // Step 5: Login to app
+      // Step 4: Login to app
       login(userData);
       toast.success(`${t('auth.login.welcomeBack')}, ${userData.name}!`);
       
-      // Step 6: Navigate based on role
+      // Step 5: Navigate based on role
       if (dbUser.role === 'teacher') {
         navigate('/teacher/dashboard');
       } else {
@@ -100,7 +89,9 @@ export function LoginPage() {
       console.error('Login error:', error);
       
       // Better error handling
-      if (error.code === 'auth/user-not-found') {
+      if (error.message?.includes('User not found')) {
+        toast.error('User not found in database. Please register first.');
+      } else if (error.code === 'auth/user-not-found') {
         toast.error('No account found with this email. Please register first.');
       } else if (error.code === 'auth/wrong-password') {
         toast.error('Incorrect password. Please try again.');
@@ -120,32 +111,40 @@ export function LoginPage() {
       const firebaseUser = await firebaseAuthService.loginWithGoogle();
       console.log('Google sign-in successful:', firebaseUser.uid);
       
-      // Step 2: Check if user exists in DynamoDB
-      let dbUser = await dynamoDBService.getUserByFirebaseUid(firebaseUser.uid);
+      // Step 2: ✅ Check if user exists via Lambda API
+      const response = await api.getUserByFirebaseUid(firebaseUser.uid);
       
-      // Step 3: If new user, create in DynamoDB
+      let dbUser = response.data;
+      
+      // Step 3: If new user, create in DynamoDB via Lambda API
       if (!dbUser) {
         console.log('New Google user, creating in DynamoDB...');
         
-        const additionalData = userType === 'teacher' 
-          ? { 
-              subjectSpecialization: ['Mathematics', 'Science'],
-              phone: '+91 9876543210'
-            }
-          : { 
-              classId: '7A',
-              phone: '+91 9876543210'
-            };
+        const saveResponse = await api.saveUser(
+          firebaseUser,
+          userType,
+          {
+            phone: '+91 9876543210',
+            ...(userType === 'teacher' && {
+              subjectSpecialization: ['Mathematics', 'Science']
+            }),
+            ...(userType === 'student' && {
+              classId: '7A'
+            })
+          }
+        );
         
-        dbUser = await dynamoDBService.saveUser(firebaseUser, userType, additionalData);
+        dbUser = saveResponse.data;
         toast.success('Google account linked successfully!');
+      } else {
+        console.log('Existing user found:', dbUser.userId);
       }
       
       // Step 4: Prepare user data
       const userData = {
         id: dbUser.userId,
         firebaseUid: firebaseUser.uid,
-        name: dbUser.name || firebaseUser.displayName || 'User',
+        name: dbUser.displayName || firebaseUser.displayName || 'User',
         email: dbUser.email,
         type: dbUser.role,
         ...(dbUser.role === 'teacher' && {

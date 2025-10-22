@@ -124,48 +124,49 @@ const cleanMarkdown = (text: string): string => {
     .trim();
 };
 
+// Subject-based image backgrounds (Google Classroom style)
 const subjectImages: Record<string, string[]> = {
   Science: [
-    'https://images.unsplash.com/photo-1576319155264-99536e0be1ee?w=500&q=80',
-    'https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?w=500&q=80',
-    'https://images.unsplash.com/photo-1516339901601-2e1b62dc0c45?w=500&q=80',
-    'https://images.unsplash.com/photo-1628595351029-c2bf17511435?w=500&q=80',
-    'https://images.unsplash.com/photo-1582719471137-c3967ffb906f?w=500&q=80',
+    'https://images.unsplash.com/photo-1576319155264-99536e0be1ee?w=800&q=80',
+    'https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?w=800&q=80',
+    'https://images.unsplash.com/photo-1516339901601-2e1b62dc0c45?w=800&q=80',
+    'https://images.unsplash.com/photo-1628595351029-c2bf17511435?w=800&q=80',
+    'https://images.unsplash.com/photo-1582719471137-c3967ffb906f?w=800&q=80',
   ],
   Mathematics: [
-    'https://images.unsplash.com/photo-1509228468518-180dd4864904?w=500&q=80',
-    'https://images.unsplash.com/photo-1635372722656-389f87a941b7?w=500&q=80',
-    'https://images.unsplash.com/photo-1596495577886-d920f1fb7238?w=500&q=80',
-    'https://images.unsplash.com/photo-1632571401005-458e9d244591?w=500&q=80',
-    'https://images.unsplash.com/photo-1611360932544-82e31a6f9c48?w=500&q=80',
+    'https://images.unsplash.com/photo-1509228468518-180dd4864904?w=800&q=80',
+    'https://images.unsplash.com/photo-1635372722656-389f87a941b7?w=800&q=80',
+    'https://images.unsplash.com/photo-1596495577886-d920f1fb7238?w=800&q=80',
+    'https://images.unsplash.com/photo-1632571401005-458e9d244591?w=800&q=80',
+    'https://images.unsplash.com/photo-1611360932544-82e31a6f9c48?w=800&q=80',
   ],
   'Social Science': [
-    'https://images.unsplash.com/photo-1589519160732-57fc498494f8?w=500&q=80',
-    'https://images.unsplash.com/photo-1569163139394-de4798aa62b6?w=500&q=80',
-    'https://images.unsplash.com/photo-1524661135-423995f22d0b?w=500&q=80',
-    'https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?w=500&q=80',
-    'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=500&q=80',
+    'https://images.unsplash.com/photo-1589519160732-57fc498494f8?w=800&q=80',
+    'https://images.unsplash.com/photo-1569163139394-de4798aa62b6?w=800&q=80',
+    'https://images.unsplash.com/photo-1524661135-423995f22d0b?w=800&q=80',
+    'https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?w=800&q=80',
+    'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&q=80',
   ],
   English: [
-    'https://images.unsplash.com/photo-1455390582262-044cdead277a?w=500&q=80',
-    'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=500&q=80',
-    'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=500&q=80',
-    'https://images.unsplash.com/photo-1550399105-c4db5fb85c18?w=500&q=80',
-    'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=500&q=80',
+    'https://images.unsplash.com/photo-1455390582262-044cdead277a?w=800&q=80',
+    'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800&q=80',
+    'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&q=80',
+    'https://images.unsplash.com/photo-1550399105-c4db5fb85c18?w=800&q=80',
+    'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=800&q=80',
   ],
   Hindi: [
-    'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=500&q=80',
-    'https://images.unsplash.com/photo-1455390582262-044cdead277a?w=500&q=80',
-    'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=500&q=80',
-    'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=500&q=80',
-    'https://images.unsplash.com/photo-1550399105-c4db5fb85c18?w=500&q=80',
+    'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800&q=80',
+    'https://images.unsplash.com/photo-1455390582262-044cdead277a?w=800&q=80',
+    'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&q=80',
+    'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=800&q=80',
+    'https://images.unsplash.com/photo-1550399105-c4db5fb85c18?w=800&q=80',
   ],
   Default: [
-    'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=500&q=80',
-    'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=500&q=80',
-    'https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?w=500&q=80',
-    'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=500&q=80',
-    'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=500&q=80',
+    'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=800&q=80',
+    'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=80',
+    'https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?w=800&q=80',
+    'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=800&q=80',
+    'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800&q=80',
   ],
 };
 
@@ -304,7 +305,7 @@ export function StudentContent() {
 
           <button
             onClick={toggleLanguage}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors border border-gray-300"
+            className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-medium transition-colors border border-gray-300 shadow-sm"
             aria-label={language === 'en' ? 'Switch to Hindi' : 'Switch to English'}
           >
             <Languages className="h-4 w-4" />
@@ -322,27 +323,27 @@ export function StudentContent() {
 
         {/* Empty State */}
         {contents.length === 0 ? (
-          <div className="bg-gray-50 rounded-2xl shadow-sm p-12 border border-gray-200">
-            <div className="text-center max-w-xl mx-auto">
-              <BookOpen className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                {t.noLessons}
-              </h3>
-              <p className="text-gray-600 mb-6">{t.noLessonsDesc}</p>
-              <div className="flex gap-4 justify-center">
-                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 w-48">
-                  <Calendar className="h-8 w-8 text-blue-600 mb-2 mx-auto" />
-                  <p className="font-medium text-gray-900 text-sm">{t.checkTomorrow}</p>
-                </div>
-                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 w-48">
-                  <Book className="h-8 w-8 text-blue-600 mb-2 mx-auto" />
-                  <p className="font-medium text-gray-900 text-sm">{t.reviewPast}</p>
-                </div>
+          <div className="bg-white rounded-2xl shadow-lg p-12 border border-gray-200 text-center max-w-xl mx-auto">
+            <BookOpen className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              {t.noLessons}
+            </h3>
+            <p className="text-gray-600 mb-6">{t.noLessonsDesc}</p>
+            <div className="flex gap-4 justify-center">
+              <div className="bg-blue-50 rounded-xl p-4 shadow-sm border border-blue-200 w-48">
+                <Calendar className="h-8 w-8 text-blue-600 mb-2 mx-auto" />
+                <p className="font-medium text-gray-900 text-sm">{t.checkTomorrow}</p>
+                <p className="text-xs text-gray-600 mt-1">{t.checkTomorrowDesc}</p>
+              </div>
+              <div className="bg-blue-50 rounded-xl p-4 shadow-sm border border-blue-200 w-48">
+                <Book className="h-8 w-8 text-blue-600 mb-2 mx-auto" />
+                <p className="font-medium text-gray-900 text-sm">{t.reviewPast}</p>
+                <p className="text-xs text-gray-600 mt-1">{t.reviewPastDesc}</p>
               </div>
             </div>
           </div>
         ) : (
-          /* COMPACT CARDS - ~50% shorter */
+          /* GOOGLE CLASSROOM STYLE CARDS */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {contents.map((content, contentIdx) => {
               const part = content.parts[0];
@@ -352,18 +353,19 @@ export function StudentContent() {
               return (
                 <div
                   key={`${content.contentId}-${contentIdx}`}
-                  className="bg-white rounded-lg shadow border border-gray-200 hover:border-blue-400 hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer group"
+                  className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer group border border-gray-200 hover:border-blue-400"
                   onClick={() => {
                     setSelectedContent(content);
                     setSelectedPart(0);
                   }}
                   aria-label={`View content for ${content.subject}`}
                 >
-                  <div className="relative h-32 overflow-hidden"> {/* Fixed height instead of aspect-video */}
+                  {/* Subject Banner */}
+                  <div className="relative h-32 overflow-hidden">
                     <img
                       src={getSubjectImage(content.subject, content.contentId)}
                       alt={content.subject}
-                      className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                       loading="lazy"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
@@ -405,7 +407,8 @@ export function StudentContent() {
                     </div>
                   </div>
 
-                  <div className="p-3 space-y-2">
+                  {/* Card Body */}
+                  <div className="p-4 space-y-3">
                     <div className="flex items-center gap-1 text-xs">
                       <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-medium">
                         {t.part} {partLabel}
@@ -434,7 +437,7 @@ export function StudentContent() {
                       </div>
                     </div>
 
-                    <div className="pt-1 mt-1 border-t border-gray-100">
+                    <div className="pt-2 mt-2 border-t border-gray-100">
                       <div className="flex items-center justify-between text-blue-600 text-xs font-medium">
                         <span>{t.viewContent}</span>
                         <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
@@ -451,7 +454,7 @@ export function StudentContent() {
   );
 }
 
-// Content Detail Page - FIXED STICKY HEADER
+// Content Detail Page - Google Classroom Inspired
 function ContentDetailPage({
   content,
   selectedPart,
@@ -475,42 +478,43 @@ function ContentDetailPage({
   const cleanedContent = cleanMarkdown(part.enhancedContent);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* FIXED: Removed sticky positioning to prevent background overlay issues */}
-      <div className="bg-white border-b border-gray-200 shadow-sm py-3">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">{content.subject}</h1>
-              <p className="text-gray-600 text-sm mt-0.5">{part.summary}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={toggleLanguage}
-                className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs font-medium flex items-center gap-1"
-              >
-                <Languages className="h-3 w-3" />
-                {language === 'en' ? 'हिंदी' : 'English'}
-              </button>
-              <button
-                onClick={onPrint}
-                className="px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 rounded text-xs font-medium flex items-center gap-1"
-              >
-                <Printer className="h-3 w-3" />
-                {t.print}
-              </button>
-              <button
-                onClick={onClose}
-                className="px-3 py-1.5 bg-gray-900 hover:bg-gray-800 text-white rounded text-xs font-medium"
-              >
-                {t.back}
-              </button>
-            </div>
+  <div className="min-h-screen bg-gray-50">
+    {/* Fixed Header */}
+    <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
+      <div className="max-w-6xl mx-auto px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">{content.subject}</h1>
+            <p className="text-gray-600 text-sm mt-0.5">{part.summary}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleLanguage}
+              className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs font-medium flex items-center gap-1"
+            >
+              <Languages className="h-3 w-3" />
+              {language === 'en' ? 'हिंदी' : 'English'}
+            </button>
+            <button
+              onClick={onPrint}
+              className="px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 rounded text-xs font-medium flex items-center gap-1"
+            >
+              <Printer className="h-3 w-3" />
+              {t.print}
+            </button>
+            <button
+              onClick={onClose}
+              className="px-3 py-1.5 bg-gray-900 hover:bg-gray-800 text-white rounded text-xs font-medium"
+            >
+              {t.back}
+            </button>
           </div>
         </div>
       </div>
+    </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-6">
+    {/* Scrollable Content Area */}
+    <div className="max-w-6xl mx-auto px-4 py-6 h-[calc(100vh-100px)] overflow-y-auto">
         {/* Part Navigation */}
         {content.parts.length > 1 && (
           <div className="flex gap-1 mb-4 overflow-x-auto pb-2">
@@ -531,7 +535,7 @@ function ContentDetailPage({
         )}
 
         {/* Summary Box */}
-        <div className="bg-blue-50 border-l-4 border-blue-600 p-3 rounded-r mb-4">
+        <div className="bg-blue-50 border-l-4 border-blue-600 p-4 rounded-r mb-4">
           <div className="flex items-start gap-2">
             <Book className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
             <div className="flex-1">
@@ -548,7 +552,7 @@ function ContentDetailPage({
         {/* Full Content */}
         <div className="mb-4">
           <h3 className="text-lg font-bold text-gray-900 mb-2">{t.fullContent}</h3>
-          <div className="bg-white p-4 rounded border border-gray-200">
+          <div className="bg-white p-4 rounded-lg border border-gray-200">
             <div className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">
               {cleanedContent}
             </div>
@@ -569,7 +573,7 @@ function ContentDetailPage({
                   href={video.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group flex gap-3 p-3 bg-white border border-gray-200 rounded hover:border-blue-400 hover:shadow transition-all"
+                  className="group flex gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:border-blue-400 hover:shadow-md transition-all"
                 >
                   <div className="relative flex-shrink-0 w-24 h-16 bg-gray-100 rounded overflow-hidden">
                     <img
@@ -602,7 +606,7 @@ function ContentDetailPage({
             </h3>
             <div className="space-y-2">
               {part.practiceQuestions.map((question, idx) => (
-                <div key={idx} className="bg-blue-50 border border-blue-100 rounded p-3">
+                <div key={idx} className="bg-blue-50 border border-blue-100 rounded-lg p-3">
                   <div className="flex gap-2">
                     <div className="flex-shrink-0 w-6 h-6 bg-blue-600 rounded flex items-center justify-center text-white font-semibold text-xs">
                       {idx + 1}
@@ -618,7 +622,7 @@ function ContentDetailPage({
         )}
 
         {/* Navigation Footer */}
-        <div className="bg-white p-4 rounded border border-gray-200">
+        <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <button
               onClick={onClose}

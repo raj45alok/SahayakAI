@@ -2,6 +2,8 @@
 
 const CONTENT_API_BASE = process.env.REACT_APP_CONTENT_API_URL || 'https://4x4vw766tf.execute-api.us-east-1.amazonaws.com/prod';
 const DOUBT_API_BASE = process.env.REACT_APP_DOUBT_API_URL || 'https://wfwgkepe4c.execute-api.us-east-1.amazonaws.com/prod';
+// NEW: Auth API Base
+const AUTH_API_BASE = process.env.REACT_APP_AUTH_API_URL || 'https://q72zzi8dw8.execute-api.us-east-1.amazonaws.com/Prod';
 
 class SahayakAPI {
   private async request(baseUrl: string, endpoint: string, options: RequestInit = {}) {
@@ -21,6 +23,33 @@ class SahayakAPI {
     }
 
     return response.json();
+  }
+
+  // ===== AUTHENTICATION API =====
+  
+  async getUserByFirebaseUid(firebaseUid: string) {
+    return this.request(AUTH_API_BASE, '/auth/user', {
+      method: 'POST',
+      body: JSON.stringify({ firebaseUid }),
+    });
+  }
+
+  async saveUser(firebaseUser: any, userType: 'student' | 'teacher', additionalData?: any) {
+    return this.request(AUTH_API_BASE, '/auth/save-user', {
+      method: 'POST',
+      body: JSON.stringify({
+        firebaseUser,
+        userType,
+        additionalData,
+      }),
+    });
+  }
+
+  async checkUserExists(firebaseUid: string) {
+    return this.request(AUTH_API_BASE, '/auth/check-user', {
+      method: 'POST',
+      body: JSON.stringify({ firebaseUid }),
+    });
   }
 
   // ===== CONTENT DELIVERY API =====
@@ -148,31 +177,34 @@ class SahayakAPI {
       body: JSON.stringify(data),
     });
   }
+
   // NEW: Get student's own doubts history
-async getStudentDoubts(studentId: string) {
-  return this.request(DOUBT_API_BASE, `/doubts/student?studentId=${studentId}`, {
-    method: 'GET',
-  });
-}
+  async getStudentDoubts(studentId: string) {
+    return this.request(DOUBT_API_BASE, `/doubts/student?studentId=${studentId}`, {
+      method: 'GET',
+    });
+  }
 
   async getFlaggedDoubts(teacherId: string) {
     return this.request(DOUBT_API_BASE, `/doubts/flagged?teacherId=${teacherId}`, {
       method: 'GET',
     });
   }
+
   async sendNow(data: {
-  contentId: string;
-  partNumber: string;
-  teacherId: string;
-}) {
-  return this.request(CONTENT_API_BASE, '/content/send-now', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
+    contentId: string;
+    partNumber: string;
+    teacherId: string;
+  }) {
+    return this.request(CONTENT_API_BASE, '/content/send-now', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   async resolveDoubt(data: {
     doubtId: string;
-    studentId: string; 
+    studentId: string;
     teacherId: string;
     teacherResponse: string;
   }) {

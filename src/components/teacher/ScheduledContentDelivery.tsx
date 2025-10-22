@@ -7,7 +7,23 @@ import { Badge } from "../ui/badge";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { toast } from "sonner";
-import { Upload, FileText, RefreshCw, Calendar, Eye, AlertCircle, CheckCircle, Edit, Trash2, Brain, BookOpen, Send, Clock } from "lucide-react";
+import {
+  Upload,
+  FileText,
+  RefreshCw,
+  Calendar,
+  Eye,
+  AlertCircle,
+  CheckCircle,
+  Edit,
+  Trash2,
+  Brain,
+  BookOpen,
+  Send,
+  Clock,
+  Youtube,
+  MessageSquare
+} from "lucide-react";
 import { AuthContext } from "../../App";
 import { api } from "../../services/api";
 
@@ -32,10 +48,7 @@ interface PreviewData {
       url: string;
       duration: string;
     }>;
-    practiceQuestions: Array<string | {
-      question: string;
-      answer: string;
-    }>;
+    practiceQuestions: Array<string | { question: string; answer: string }>;
   }>;
 }
 
@@ -59,7 +72,6 @@ interface ScheduledContentItem {
 
 export function ScheduledContentDelivery() {
   const { user } = React.useContext(AuthContext);
-  
   // Upload Step
   const [uploadMethod, setUploadMethod] = useState<UploadMethod>("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -69,34 +81,28 @@ export function ScheduledContentDelivery() {
   const [numParts, setNumParts] = useState(3);
   const [instructions, setInstructions] = useState("");
   const [language, setLanguage] = useState("hindi");
-  
   // Processing State
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [contentId, setContentId] = useState<string | null>(null);
   const [aiProcessing, setAiProcessing] = useState(false);
   const [aiProgress, setAiProgress] = useState(0);
-  
   // Preview State
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);
   const [editingPart, setEditingPart] = useState<string | null>(null);
   const [editedContent, setEditedContent] = useState("");
-  
   // Schedule State
   const [startDate, setStartDate] = useState("");
   const [isScheduling, setIsScheduling] = useState(false);
-  
-  // NEW: Custom Schedule State
+  // Custom Schedule State
   const [deliveryTime, setDeliveryTime] = useState("08:00");
   const [intervalDays, setIntervalDays] = useState(2);
   const [useDefaultSchedule, setUseDefaultSchedule] = useState(true);
-  
-  // NEW: Edit Schedule State
+  // Edit Schedule State
   const [editingScheduleIndex, setEditingScheduleIndex] = useState<number | null>(null);
   const [editedScheduleDate, setEditedScheduleDate] = useState("");
   const [editedScheduleTime, setEditedScheduleTime] = useState("");
-  
-  // NEW: Scheduled Content State
+  // Scheduled Content State
   const [scheduledContent, setScheduledContent] = useState<ScheduledContentItem[]>([]);
   const [loadingScheduled, setLoadingScheduled] = useState(false);
 
@@ -104,7 +110,6 @@ export function ScheduledContentDelivery() {
   const subjects = ["Hindi", "English", "Science", "Social Science", "Maths"];
   const languages = ["hindi", "english", "marathi", "tamil"];
 
-  // NEW: Fetch scheduled content on component mount
   useEffect(() => {
     if (user?.id) {
       fetchScheduledContent();
@@ -121,7 +126,6 @@ export function ScheduledContentDelivery() {
       setScheduledContent(response.scheduledContent || []);
     } catch (error: any) {
       console.error("Failed to fetch scheduled content:", error);
-      // Don't show error toast, just keep empty state
     } finally {
       setLoadingScheduled(false);
     }
@@ -146,29 +150,21 @@ export function ScheduledContentDelivery() {
       toast.error("Please select class and subject");
       return;
     }
-
     if (uploadMethod === "pdf" && !pdfFile) {
       toast.error("Please select a PDF file");
       return;
     }
-
     if (uploadMethod === "kb_topic" && !kbTopic.trim()) {
       toast.error("Please enter a topic name");
       return;
     }
-
     try {
       setIsUploading(true);
       setUploadProgress(10);
-
       let s3Key = "";
       let base64Content = "";
-
-      // Handle PDF Upload
       if (uploadMethod === "pdf" && pdfFile) {
-        // Check if file is <= 4MB for base64 conversion
         if (pdfFile.size <= 4 * 1024 * 1024) {
-          // Convert to base64
           const reader = new FileReader();
           reader.onload = async () => {
             const result = reader.result as string;
@@ -179,13 +175,11 @@ export function ScheduledContentDelivery() {
           reader.readAsDataURL(pdfFile);
           return;
         } else {
-          // Use S3 upload for larger files
           const uploadUrlResponse = await api.getUploadUrl({
             teacherId: user?.id || "TCH-001",
             fileName: pdfFile.name,
             fileSize: pdfFile.size,
           });
-
           setUploadProgress(30);
           await api.uploadToS3(uploadUrlResponse.uploadUrl, pdfFile);
           s3Key = uploadUrlResponse.s3Key;
@@ -215,7 +209,6 @@ export function ScheduledContentDelivery() {
         instructions,
         language,
       };
-
       if (uploadMethod === "pdf") {
         if (base64Content) {
           processPayload.pdfBase64 = base64Content;
@@ -225,15 +218,13 @@ export function ScheduledContentDelivery() {
       } else {
         processPayload.textContent = kbTopic;
       }
-
       const processResponse = await api.processContent(processPayload);
       setContentId(processResponse.contentId);
       setUploadProgress(100);
-
       toast.success("Content uploaded! Enhancement in progress...", {
         description: "This will take 1-2 minutes. Preview will load automatically.",
       });
-
+      setAiProcessing(true); // ✅ CRITICAL: Show AI loader
       startAiProcessingAnimation();
       pollForPreview(processResponse.contentId);
     } catch (error: any) {
@@ -245,60 +236,49 @@ export function ScheduledContentDelivery() {
     }
   };
 
-  // FIXED: Improved AI Processing Animation with smooth progress
   const startAiProcessingAnimation = () => {
     setAiProgress(0);
-    const duration = 70000; // 70 seconds total
-    const interval = 500; // Update every 500ms for smoother progress
+    const duration = 70000;
+    const interval = 500;
     const steps = duration / interval;
     let currentStep = 0;
-
     const timer = setInterval(() => {
       currentStep++;
-      // Smooth progress curve - starts slower, accelerates in middle, ends slower
       const progress = Math.min(
-        (currentStep / steps) * 100 * 
-        (0.3 + 0.7 * Math.sin((currentStep / steps) * Math.PI * 0.5)), // Ease-in-out curve
-        95 // Cap at 95% until API returns
+        (currentStep / steps) * 100 * (0.3 + 0.7 * Math.sin((currentStep / steps) * Math.PI * 0.5)),
+        95
       );
       setAiProgress(progress);
-      
       if (currentStep >= steps) {
         clearInterval(timer);
       }
     }, interval);
-
-    return timer; // Return timer so we can clear it
+    return timer;
   };
 
   const pollForPreview = async (cid: string, attempts = 0) => {
-    if (attempts > 30) { // Increased from 20 to 30 attempts
+    if (attempts > 30) {
       toast.error("Enhancement is taking longer than expected. Please check back later.");
       setIsUploading(false);
       setAiProcessing(false);
       return;
     }
-
     try {
       const preview = await api.getPreview(cid);
-      
       if (preview.isReadyForScheduling) {
-        // Set to 100% when done
         setAiProgress(100);
         setTimeout(() => {
           setPreviewData(preview);
           setIsUploading(false);
           setAiProcessing(false);
           toast.success("Content ready for preview!");
-        }, 500); // Small delay to show 100%
+        }, 500);
       } else {
-        // Increment progress based on attempts
         const progress = Math.min(20 + (attempts * 4), 95);
         setAiProgress(progress);
         setTimeout(() => pollForPreview(cid, attempts + 1), 6000);
       }
     } catch (error) {
-      // Continue polling on error but don't increase progress
       setTimeout(() => pollForPreview(cid, attempts + 1), 6000);
     }
   };
@@ -310,20 +290,15 @@ export function ScheduledContentDelivery() {
 
   const handleSaveEdit = async (partNumber: string) => {
     if (!contentId) return;
-
     try {
       const part = previewData?.parts.find(p => p.partNumber === partNumber);
       if (!part) return;
-
       await api.updateContent({
         contentId,
         action: "update",
         partNumber,
-        updates: {
-          enhancedContent: editedContent,
-        },
+        updates: { enhancedContent: editedContent },
       });
-
       const updatedPreview = await api.getPreview(contentId);
       setPreviewData(updatedPreview);
       setEditingPart(null);
@@ -335,22 +310,16 @@ export function ScheduledContentDelivery() {
 
   const handleDeleteVideo = async (partNumber: string, videoIndex: number) => {
     if (!contentId) return;
-
     try {
       const part = previewData?.parts.find(p => p.partNumber === partNumber);
       if (!part) return;
-
       const updatedVideos = part.videoLinks.filter((_, i) => i !== videoIndex);
-
       await api.updateContent({
         contentId,
         action: "update",
         partNumber,
-        updates: {
-          videoLinks: updatedVideos,
-        },
+        updates: { videoLinks: updatedVideos },
       });
-
       const updatedPreview = await api.getPreview(contentId);
       setPreviewData(updatedPreview);
       toast.success("Video removed");
@@ -359,7 +328,6 @@ export function ScheduledContentDelivery() {
     }
   };
 
-  // FIXED: Handle Send Now with API call - working version
   const handleSendNow = async (contentId: string, partNumber: string) => {
     try {
       const response = await api.sendNow({
@@ -367,12 +335,9 @@ export function ScheduledContentDelivery() {
         partNumber,
         teacherId: user?.id || "TCH-001"
       });
-      
       toast.success("Content sent successfully!", {
         description: `${response.emailsSent || response.message || 'Students notified'}`
       });
-      
-      // Refresh scheduled content
       await fetchScheduledContent();
     } catch (error: any) {
       console.error("Send Now error:", error);
@@ -380,62 +345,40 @@ export function ScheduledContentDelivery() {
     }
   };
 
-  // NEW: Handle Edit Schedule for individual part
   const handleEditSchedule = (index: number, currentDate: string, currentTime: string) => {
     setEditingScheduleIndex(index);
     setEditedScheduleDate(currentDate);
     setEditedScheduleTime(currentTime);
   };
 
-  // NEW: Handle Save Schedule Edit
   const handleSaveScheduleEdit = async (index: number) => {
     if (!contentId) return;
-
     try {
-      // Here you would call an API to update the schedule for this specific part
-      // For now, we'll just update the local state and show a toast
       toast.success(`Part ${index + 1} schedule updated to ${editedScheduleDate} at ${editedScheduleTime}`);
       setEditingScheduleIndex(null);
-      
-      // In a real implementation, you would call:
-      // await api.updateSchedule({ contentId, partIndex: index, newDate: editedScheduleDate, newTime: editedScheduleTime });
-      
     } catch (error: any) {
       toast.error(error.message || "Failed to update schedule");
     }
   };
 
-  // UPDATED: Handle Schedule with custom schedule options
   const handleSchedule = async () => {
     if (!contentId || !startDate) {
       toast.error("Please select a start date");
       return;
     }
-
     try {
       setIsScheduling(true);
-      
-      const scheduleData: any = {
-        contentId,
-        startDate,
-        classId,
-      };
-      
-      // Add custom schedule if not using defaults
+      const scheduleData: any = { contentId, startDate, classId };
       if (!useDefaultSchedule) {
         scheduleData.deliveryTime = deliveryTime;
         scheduleData.intervalDays = intervalDays;
       }
-      
       await api.scheduleContent(scheduleData);
-
       toast.success("Content scheduled successfully!", {
-        description: useDefaultSchedule 
+        description: useDefaultSchedule
           ? `Students will receive parts on alternate days at 8:00 AM starting ${startDate}`
           : `Students will receive parts every ${intervalDays} day(s) at ${deliveryTime} starting ${startDate}`
       });
-
-      // Refresh scheduled content list
       await fetchScheduledContent();
       handleClear();
     } catch (error: any) {
@@ -461,130 +404,130 @@ export function ScheduledContentDelivery() {
     setEditingPart(null);
     setAiProcessing(false);
     setAiProgress(0);
-    // Reset schedule options
     setDeliveryTime("08:00");
     setIntervalDays(2);
     setUseDefaultSchedule(true);
-    // Reset edit schedule
     setEditingScheduleIndex(null);
   };
 
+  // ✅ NEW: Correct AI Processing Animation with your backend stages
   const AiProcessingAnimation = () => {
-  const [currentStep, setCurrentStep] = useState(0);
+    const [currentStep, setCurrentStep] = useState(0);
+    const steps = [
+      { icon: FileText, text: 'Extracting text from your content...', color: 'text-blue-600' },
+      { icon: BookOpen, text: 'Splitting into structured parts...', color: 'text-purple-600' },
+      { icon: Brain, text: 'Enhancing educational content...', color: 'text-green-600' },
+      { icon: Youtube, text: 'Adding relevant YouTube videos...', color: 'text-red-500' },
+      { icon: MessageSquare, text: 'Generating practice questions...', color: 'text-indigo-600' },
+      { icon: CheckCircle, text: 'Content generation successful!', color: 'text-emerald-600' },
+    ];
 
-  const steps = [
-    { icon: Brain, text: 'Analyzing content structure...', color: 'text-blue-600' },
-    { icon: BookOpen, text: 'Enhancing educational material...', color: 'text-purple-600' },
-    { icon: FileText, text: 'Generating practice questions...', color: 'text-green-600' },
-    { icon: Calendar, text: 'Preparing delivery schedule...', color: 'text-indigo-600' },
-  ];
+    useEffect(() => {
+      const stepInterval = setInterval(() => {
+        setCurrentStep((prev) => {
+          if (prev >= steps.length - 1) {
+            clearInterval(stepInterval);
+            return steps.length - 1;
+          }
+          return prev + 1;
+        });
+      }, 14000);
+      return () => clearInterval(stepInterval);
+    }, []);
 
-  useEffect(() => {
-    const stepInterval = setInterval(() => {
-      setCurrentStep((prev) => {
-        if (prev >= steps.length - 1) {
-          clearInterval(stepInterval);
-          return steps.length - 1;
-        }
-        return prev + 1;
-      });
-    }, 20000); // 20 seconds per step
+    return (
+      <div className="fixed inset-0 bg-background/95 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="max-w-2xl w-full mx-4">
+          <div className="text-center mb-8">
+            <div className="relative mb-6">
+              <div className="w-32 h-32 mx-auto bg-gradient-to-r from-primary to-primary/70 rounded-full flex items-center justify-center animate-pulse">
+                <Brain className="w-16 h-16 text-white" />
+              </div>
+            </div>
+            <h1 className="text-4xl font-bold text-primary mb-2">
+              AI is Enhancing Your Content
+            </h1>
+            <p className="text-muted-foreground text-lg">
+              Please wait while we prepare your study material
+            </p>
+          </div>
 
-    return () => clearInterval(stepInterval);
-  }, []);
-
-  return (
-    <div className="fixed inset-0 bg-background/95 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="max-w-2xl w-full mx-4">
-        <div className="text-center mb-8">
-          <div className="relative mb-6">
-            <div className="w-32 h-32 mx-auto bg-gradient-to-r from-primary to-primary/70 rounded-full flex items-center justify-center animate-pulse">
-              <Brain className="w-16 h-16 text-white" />
+          <div className="mb-8">
+            <div className="flex justify-between text-sm text-muted-foreground mb-2">
+              <span>Progress</span>
+              <span>{Math.round(aiProgress)}%</span>
+            </div>
+            <div className="w-full bg-muted rounded-full h-4">
+              <div
+                className="bg-gradient-to-r from-primary to-primary/70 h-4 rounded-full transition-all duration-500"
+                style={{ width: `${aiProgress}%` }}
+              />
             </div>
           </div>
-          
-          <h1 className="text-4xl font-bold text-primary mb-2">
-            AI Content Enhancement
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            Please wait while we enhance your educational content
-          </p>
-        </div>
 
-        <div className="mb-8">
-          <div className="flex justify-between text-sm text-muted-foreground mb-2">
-            <span>Progress</span>
-            <span>{Math.round(aiProgress)}%</span>
-          </div>
-          <div className="w-full bg-muted rounded-full h-4">
-            <div
-              className="bg-gradient-to-r from-primary to-primary/70 h-4 rounded-full transition-all duration-500"
-              style={{ width: `${aiProgress}%` }}
-            />
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          {steps.map((step, index) => {
-            const Icon = step.icon;
-            const isActive = index === currentStep;
-            const isCompleted = index < currentStep;
-            
-            return (
-              <div
-                key={index}
-                className={`flex items-center p-4 rounded-lg transition-all duration-500 ${
-                  isActive
-                    ? 'bg-primary/10 border-2 border-primary scale-105'
-                    : isCompleted
-                    ? 'bg-green-500/10 border border-green-500/20'
-                    : 'bg-muted/50 border border-border'
-                }`}
-              >
+          <div className="space-y-4">
+            {steps.map((step, index) => {
+              const Icon = step.icon;
+              const isActive = index === currentStep;
+              const isCompleted = index < currentStep;
+              return (
                 <div
-                  className={`w-12 h-12 rounded-full flex items-center justify-center mr-4 transition-all ${
+                  key={index}
+                  className={`flex items-center p-4 rounded-lg transition-all duration-500 ${
                     isActive
-                      ? 'bg-gradient-to-r from-primary to-primary/70 animate-pulse'
+                      ? 'bg-primary/10 border-2 border-primary scale-105'
                       : isCompleted
-                      ? 'bg-green-500'
-                      : 'bg-muted'
+                      ? 'bg-green-500/10 border border-green-500/20'
+                      : 'bg-muted/50 border border-border'
                   }`}
                 >
-                  <Icon className="w-6 h-6 text-white" />
-                </div>
-                <span
-                  className={`font-medium text-base ${
-                    isActive ? 'text-foreground' : isCompleted ? 'text-green-600' : 'text-muted-foreground'
-                  }`}
-                >
-                  {step.text}
-                </span>
-                {isActive && (
-                  <div className="ml-auto flex space-x-1">
-                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" />
-                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <div
+                    className={`w-12 h-12 rounded-full flex items-center justify-center mr-4 transition-all ${
+                      isActive
+                        ? 'bg-gradient-to-r from-primary to-primary/70 animate-pulse'
+                        : isCompleted
+                        ? 'bg-green-500'
+                        : 'bg-muted'
+                    }`}
+                  >
+                    <Icon className="w-6 h-6 text-white" />
                   </div>
-                )}
-                {isCompleted && (
-                  <CheckCircle className="ml-auto w-6 h-6 text-green-500" />
-                )}
-              </div>
-            );
-          })}
-        </div>
+                  <span
+                    className={`font-medium text-base ${
+                      isActive
+                        ? 'text-foreground'
+                        : isCompleted
+                        ? 'text-green-600'
+                        : 'text-muted-foreground'
+                    }`}
+                  >
+                    {step.text}
+                  </span>
+                  {isActive && (
+                    <div className="ml-auto flex space-x-1">
+                      <div className="w-2 h-2 bg-primary rounded-full animate-bounce" />
+                      <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
+                  )}
+                  {isCompleted && (
+                    <CheckCircle className="ml-auto w-6 h-6 text-green-500" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
 
-        <div className="text-center mt-8">
-          <p className="text-muted-foreground">
-            This usually takes 1-2 minutes
-          </p>
+          <div className="text-center mt-8">
+            <p className="text-muted-foreground">
+              This usually takes 1–2 minutes
+            </p>
+          </div>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
-  // UPDATED: Scheduled Content Panel Component with delivered counts and FIXED Send Now button
   const ScheduledContentPanel = () => (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
@@ -598,7 +541,6 @@ export function ScheduledContentDelivery() {
           <RefreshCw className={`h-4 w-4 ${loadingScheduled ? 'animate-spin' : ''}`} />
         </Button>
       </div>
-
       <div className="flex-1 overflow-y-auto space-y-4 pr-2">
         {loadingScheduled ? (
           <div className="text-center py-8">
@@ -619,10 +561,8 @@ export function ScheduledContentDelivery() {
                   <div className="flex-1">
                     <CardTitle className="text-base font-bold text-foreground">{item.subject}</CardTitle>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      <Badge variant="outline" className="text-xs">
-                        {item.classId}
-                      </Badge>
-                      <Badge 
+                      <Badge variant="outline" className="text-xs">{item.classId}</Badge>
+                      <Badge
                         variant="secondary"
                         className={`text-xs ${
                           item.status === 'completed' ? 'bg-green-100 text-green-800' :
@@ -634,7 +574,6 @@ export function ScheduledContentDelivery() {
                          item.status === 'in_progress' ? 'In Progress' :
                          'Completed'}
                       </Badge>
-                      {/* NEW: Delivered count badge */}
                       <Badge variant="outline" className="text-xs bg-primary/10 text-primary">
                         {item.deliveredParts || 0}/{item.totalParts} delivered
                       </Badge>
@@ -656,7 +595,6 @@ export function ScheduledContentDelivery() {
                     Every {item.intervalDays} day{item.intervalDays > 1 ? 's' : ''}
                   </div>
                 </div>
-
                 <div className="space-y-2">
                   {item.parts.slice(0, 3).map((part, idx) => (
                     <div key={part.partNumber} className="flex items-center justify-between p-2 bg-muted/50 rounded border">
@@ -668,7 +606,6 @@ export function ScheduledContentDelivery() {
                           {new Date(part.scheduledDate).toLocaleDateString('en-IN')}
                         </p>
                       </div>
-                      {/* FIXED: Send Now button - properly integrated */}
                       {part.status === 'scheduled' && (
                         <Button
                           size="sm"
@@ -700,13 +637,11 @@ export function ScheduledContentDelivery() {
     </div>
   );
 
-  // Step 1: Upload Form (with two-column layout)
   if (!contentId && !previewData) {
     return (
       <div className="h-full bg-background p-4 md:p-6">
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="text-center md:text-left">
-            {/* UPDATED: Primary color for heading */}
             <h1 className="text-4xl font-bold text-primary">
               Schedule Content Delivery
             </h1>
@@ -714,9 +649,7 @@ export function ScheduledContentDelivery() {
               Upload educational content and schedule automated delivery to students
             </p>
           </div>
-
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-            {/* LEFT PANEL - Upload Section */}
             <Card className="border-0 shadow-lg bg-card">
               <CardHeader className="bg-muted/50 rounded-t-lg p-6 border-b">
                 <CardTitle className="text-xl font-bold text-foreground">Upload Content</CardTitle>
@@ -744,7 +677,6 @@ export function ScheduledContentDelivery() {
                         Upload your own study material
                       </p>
                     </button>
-                    
                     <button
                       onClick={() => setUploadMethod("kb_topic")}
                       className={`p-6 border-2 rounded-xl text-center transition-all bg-background hover:shadow-md ${
@@ -763,7 +695,6 @@ export function ScheduledContentDelivery() {
                     </button>
                   </div>
                 </div>
-
                 {uploadMethod === "pdf" && (
                   <div className="space-y-2">
                     <Label className="text-base font-medium text-foreground">Select PDF File</Label>
@@ -800,7 +731,6 @@ export function ScheduledContentDelivery() {
                     </div>
                   </div>
                 )}
-
                 {uploadMethod === "kb_topic" && (
                   <div className="space-y-2">
                     <Label className="text-base font-medium text-foreground">Topic Name</Label>
@@ -815,7 +745,6 @@ export function ScheduledContentDelivery() {
                     </p>
                   </div>
                 )}
-
                 {uploadMethod && (
                   <>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -834,7 +763,6 @@ export function ScheduledContentDelivery() {
                           </SelectContent>
                         </Select>
                       </div>
-
                       <div className="space-y-2">
                         <Label className="text-base font-medium text-foreground">Subject</Label>
                         <Select value={subject} onValueChange={setSubject}>
@@ -851,7 +779,6 @@ export function ScheduledContentDelivery() {
                         </Select>
                       </div>
                     </div>
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
                         <Label className="text-base font-medium text-foreground">Number of Parts ({numParts})</Label>
@@ -864,7 +791,6 @@ export function ScheduledContentDelivery() {
                           className="py-6 text-base text-foreground"
                         />
                       </div>
-
                       <div className="space-y-2">
                         <Label className="text-base font-medium text-foreground">Language</Label>
                         <Select value={language} onValueChange={setLanguage}>
@@ -881,7 +807,6 @@ export function ScheduledContentDelivery() {
                         </Select>
                       </div>
                     </div>
-
                     <div className="space-y-2">
                       <Label className="text-base font-medium text-foreground">AI Enhancement Instructions (Optional)</Label>
                       <Textarea
@@ -891,14 +816,12 @@ export function ScheduledContentDelivery() {
                         className="min-h-[120px] text-base p-4 text-foreground"
                       />
                     </div>
-
                     {isUploading && (
-  <div className="text-center py-4">
-    <RefreshCw className="h-8 w-8 animate-spin mx-auto text-primary mb-2" />
-    <p className="text-sm text-muted-foreground">Uploading...</p>
-  </div>
-)}
-
+                      <div className="text-center py-4">
+                        <RefreshCw className="h-8 w-8 animate-spin mx-auto text-primary mb-2" />
+                        <p className="text-sm text-muted-foreground">Uploading...</p>
+                      </div>
+                    )}
                     <div className="flex gap-3 pt-2">
                       <Button
                         onClick={handleUpload}
@@ -926,8 +849,6 @@ export function ScheduledContentDelivery() {
                 )}
               </CardContent>
             </Card>
-
-            {/* RIGHT PANEL - Scheduled Content */}
             <Card className="border-0 shadow-lg bg-card h-[800px]">
               <CardContent className="p-6 h-full">
                 <ScheduledContentPanel />
@@ -939,30 +860,21 @@ export function ScheduledContentDelivery() {
     );
   }
 
-  // AI Processing State - Now full page centered
   if (aiProcessing) {
     return <AiProcessingAnimation />;
   }
 
-  // Step 2: Preview & Schedule
   return (
     <div className="max-w-6xl mx-auto space-y-6 p-4 md:p-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          {/* UPDATED: Primary color for heading */}
-          <h1 className="text-3xl font-bold text-primary">
-            Content Preview
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Review and schedule delivery
-          </p>
+          <h1 className="text-3xl font-bold text-primary">Content Preview</h1>
+          <p className="text-muted-foreground mt-2">Review and schedule delivery</p>
         </div>
-        {/* UPDATED: Better visibility for Start New Upload button */}
         <Button onClick={handleClear} size="lg" className="py-6 bg-primary hover:bg-primary/90">
           Start New Upload
         </Button>
       </div>
-
       <Card className="border-0 shadow-lg">
         <CardContent className="pt-6 pb-4">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -977,7 +889,6 @@ export function ScheduledContentDelivery() {
                 {previewData?.totalParts} parts • {previewData?.enhancedParts} enhanced
               </p>
             </div>
-            
             {previewData?.isReadyForScheduling ? (
               <Badge className="flex items-center gap-2 px-4 py-2 text-base bg-green-100 text-green-800">
                 <CheckCircle className="h-5 w-5" />
@@ -992,7 +903,6 @@ export function ScheduledContentDelivery() {
           </div>
         </CardContent>
       </Card>
-
       {previewData && (
         <div className="grid gap-6">
           {previewData.parts.map((part, index) => (
@@ -1023,7 +933,6 @@ export function ScheduledContentDelivery() {
                       </Button>
                     )}
                   </div>
-                  
                   {editingPart === part.partNumber ? (
                     <div className="space-y-3">
                       <Textarea
@@ -1048,7 +957,6 @@ export function ScheduledContentDelivery() {
                     </div>
                   )}
                 </div>
-
                 {part.videoLinks.length > 0 && (
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground mb-3">
@@ -1083,7 +991,6 @@ export function ScheduledContentDelivery() {
                     </div>
                   </div>
                 )}
-
                 {part.practiceQuestions.length > 0 && (
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground mb-3">
@@ -1093,7 +1000,6 @@ export function ScheduledContentDelivery() {
                       {part.practiceQuestions.map((q, i) => {
                         let question = '';
                         let answer = '';
-                        
                         if (typeof q === 'string') {
                           const parts = q.split('**Answer:**');
                           if (parts.length === 2) {
@@ -1107,7 +1013,6 @@ export function ScheduledContentDelivery() {
                           question = q.question || 'Question unavailable';
                           answer = q.answer || 'Answer unavailable';
                         }
-                        
                         return (
                           <div key={i} className="p-4 border rounded-lg bg-background">
                             <p className="text-sm font-medium text-foreground">Q{i + 1}. {question}</p>
@@ -1130,7 +1035,6 @@ export function ScheduledContentDelivery() {
           ))}
         </div>
       )}
-
       {previewData?.isReadyForScheduling && (
         <Card className="border-0 shadow-lg">
           <CardHeader className="bg-muted/50 rounded-t-lg p-6 border-b">
@@ -1150,8 +1054,6 @@ export function ScheduledContentDelivery() {
                 className="py-6 text-base text-foreground"
               />
             </div>
-
-            {/* NEW: Custom Schedule Options */}
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
                 <input
@@ -1165,7 +1067,6 @@ export function ScheduledContentDelivery() {
                   Use Default Schedule (8:00 AM, Every 2 days)
                 </Label>
               </div>
-
               {!useDefaultSchedule && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 border rounded-lg bg-muted/30">
                   <div className="space-y-2">
@@ -1177,7 +1078,6 @@ export function ScheduledContentDelivery() {
                       className="py-6 text-base text-foreground"
                     />
                   </div>
-                  
                   <div className="space-y-2">
                     <Label className="text-base font-medium text-foreground">Interval Days</Label>
                     <Select value={intervalDays.toString()} onValueChange={(value) => setIntervalDays(parseInt(value))}>
@@ -1195,7 +1095,6 @@ export function ScheduledContentDelivery() {
                 </div>
               )}
             </div>
-
             {startDate && previewData && (
               <div className="p-5 bg-muted/30 rounded-lg border">
                 <Label className="text-base font-medium mb-3 text-foreground">Delivery Timeline</Label>
@@ -1203,13 +1102,9 @@ export function ScheduledContentDelivery() {
                   {Array.from({ length: previewData.totalParts }).map((_, i) => {
                     const deliveryDate = new Date(startDate);
                     deliveryDate.setDate(deliveryDate.getDate() + i * intervalDays);
-                    
-                    // Format time for display
-                    const displayTime = useDefaultSchedule ? "8:00 AM" : 
+                    const displayTime = useDefaultSchedule ? "8:00 AM" :
                       `${parseInt(deliveryTime.split(':')[0]) % 12 || 12}:${deliveryTime.split(':')[1]} ${parseInt(deliveryTime.split(':')[0]) >= 12 ? 'PM' : 'AM'}`;
-                    
                     const currentDate = deliveryDate.toISOString().split('T')[0];
-                    
                     return (
                       <li key={i} className="flex items-center justify-between gap-3 py-2 px-3 bg-background rounded border">
                         <div className="flex items-center gap-3 flex-1">
@@ -1217,9 +1112,7 @@ export function ScheduledContentDelivery() {
                             <span className="text-sm font-bold text-primary">{i + 1}</span>
                           </div>
                           <div className="flex-1">
-                            <span className="text-foreground font-medium">
-                              Part {i + 1}
-                            </span>
+                            <span className="text-foreground font-medium">Part {i + 1}</span>
                             {editingScheduleIndex === i ? (
                               <div className="flex gap-2 mt-2">
                                 <Input
@@ -1242,18 +1135,17 @@ export function ScheduledContentDelivery() {
                             )}
                           </div>
                         </div>
-                        
                         {editingScheduleIndex === i ? (
                           <div className="flex gap-2">
-                            <Button 
-                              size="sm" 
+                            <Button
+                              size="sm"
                               onClick={() => handleSaveScheduleEdit(i)}
                               className="bg-primary hover:bg-primary/90"
                             >
                               Save
                             </Button>
-                            <Button 
-                              size="sm" 
+                            <Button
+                              size="sm"
                               variant="outline"
                               onClick={() => setEditingScheduleIndex(null)}
                             >
@@ -1276,7 +1168,6 @@ export function ScheduledContentDelivery() {
                 </ul>
               </div>
             )}
-
             <Button
               onClick={handleSchedule}
               disabled={!startDate || isScheduling}
