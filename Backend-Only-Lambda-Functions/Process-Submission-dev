@@ -1,0 +1,726 @@
+import json
+import boto3
+import uuid
+from datetime import datetime
+from io import BytesIO
+import traceback
+
+print("🔧 Lambda container initialization starting...")
+
+# Initialize AWS clients with error handling
+try:
+    dynamodb = boto3.resource('dynamodb')
+    s3 = boto3.client('s3')
+    lambda_client = boto3.client('lambda')
+    print("✅ AWS clients initialized successfully")
+except Exception as e:
+    print(f"❌ Failed to initialize AWS clients: {str(e)}")
+    raise
+
+def lambda_handler(event, context):
+    print("=" * 80)
+    print("🚀 STARTING SUBMISSION PROCESSING - ENHANCED DEBUG")
+    print("=" * 80)
+    
+    # Enhanced event debugging
+    print("📋 EVENT ANALYSIS:")
+    print(f"Event Type: {type(event)}")
+    print(f"Event Keys: {list(event.keys()) if isinstance(event, dict) else 'Not a dict'}")
+    
+    # Check for API Gateway structure
+    if 'httpMethod' in event:
+        print("✅ API Gateway Proxy Request detected")
+        print(f"HTTP Method: {event.get('httpMethod')}")
+        print(f"Path: {event.get('path')}")
+    else:
+        print("⚠️ Direct invocation or custom event format")
+    
+    # Check for body in different locations
+    body = None
+    if 'body' in event and event['body']:
+        print("📥 Found 'body' in event")
+        try:
+            if isinstance(event['body'], str):
+                body = json.loads(event['body'])
+            else:
+                body = event['body']
+            print("✅ Successfully parsed request body")
+        except json.JSONDecodeError as e:
+            print(f"❌ JSON parse error in body: {str(e)}")
+            print(f"Raw body: {event['body']}")
+            return error_response("Invalid JSON in request body", 400)
+    elif 'body' in event and not event['body']:
+        print("⚠️ Empty body in event")
+        return error_response("Request body is empty", 400)
+    else:
+        print("ℹ️ Using event directly as body")
+        body = event
+    
+    # Validate required fields
+    if not body:
+        return error_response("No request body provided", 400)
+    
+    required_fields = ['assignment_id', 'student_id', 'student_name']
+    missing_fields = [field for field in required_fields if field not in body]
+    if missing_fields:
+        print(f"❌ Missing required fields: {missing_fields}")
+        return error_response(f"Missing required fields: {', '.join(missing_fields)}", 400)
+    
+    print(f"✅ All required fields present: {required_fields}")
+    
+    try:
+        # Parse the request
+        print("\n📥 Step 1: Parsing incoming request...")
+        submission_type = body.get('submission_type', 'google_forms')
+        assignment_id = body['assignment_id']
+        student_id = body['student_id']
+        student_name = body['student_name']
+        
+        print(f"\n📋 Submission Details:")
+        print(f"  └─ Type: {submission_type}")
+        print(f"  └─ Assignment ID: {assignment_id}")
+        print(f"  └─ Student ID: {student_id}")
+        print(f"  └─ Student Name: {student_name}")
+        
+        # Get assignment details to verify it exists
+        print(f"\n📚 Step 2: Verifying assignment exists...")
+        assignment_details = get_assignment_details(assignment_id)
+        if not assignment_details:
+            print(f"  ❌ Assignment {assignment_id} NOT FOUND")
+            return error_response(f"Assignment {assignment_id} not found", 404)
+        print(f"  ✅ Assignment found: {assignment_details.get('subject', 'N/A')}")
+        
+        # Check if assignment is still active (not past due date)
+        print(f"\n⏰ Step 3: Checking assignment deadline...")
+        if not is_assignment_active(assignment_details):
+            print(f"  ❌ Assignment deadline has PASSED")
+            return error_response("Assignment deadline has passed", 400)
+        print(f"  ✅ Assignment is still accepting submissions")
+        
+        # Check for existing submissions and handle according to policy
+        print(f"\n🔄 Step 4: Checking for duplicate submissions...")
+        existing_count = check_and_handle_existing_submission(assignment_id, student_id)
+        if existing_count > 0:
+            print(f"  ⚠️ This is a RESUBMISSION (previous count: {existing_count})")
+        else:
+            print(f"  ✅ This is the FIRST submission")
+        
+        # Generate submission ID
+        submission_id = str(uuid.uuid4())
+        print(f"\n🆔 Step 5: Generated submission ID: {submission_id}")
+        
+        # Process based on submission type
+        print(f"\n⚙️ Step 6: Processing {submission_type} submission...")
+        if submission_type == 'google_forms':
+            submission_data = process_google_forms_submission(body, assignment_id, student_id, submission_id, student_name)
+        elif submission_type == 'file_upload':
+            submission_data = process_file_upload_submission(body, assignment_id, student_id, submission_id, student_name)
+        else:
+            print(f"  ❌ Unsupported submission type: {submission_type}")
+            return error_response(f"Unsupported submission type: {submission_type}", 400)
+        
+        # Store submission in S3
+        print(f"\n💾 Step 7: Storing submission in S3...")
+        s3_location = store_submission_in_s3(submission_data, assignment_id, student_id, submission_id, context)
+        
+        # Update DynamoDB with submission entry
+        print(f"\n📊 Step 8: Updating DynamoDB tracking...")
+        update_submission_tracking(assignment_id, student_id, student_name, submission_id, s3_location, submission_type)
+        
+        # Send submission confirmation email
+        print(f"\n📧 Step 9: Sending confirmation email...")
+        send_submission_confirmation(assignment_details, student_id, student_name, submission_data, existing_count > 0)
+        
+        print("\n" + "=" * 80)
+        print("✅ SUBMISSION PROCESSING COMPLETED SUCCESSFULLY")
+        print("=" * 80)
+        
+        return success_response({
+            'submission_id': submission_id,
+            'assignment_id': assignment_id,
+            'student_id': student_id,
+            'status': 'submitted',
+            's3_location': s3_location,
+            'submission_type': submission_type,
+            'submitted_at': datetime.now().isoformat(),
+            'is_resubmission': existing_count > 0,
+            'previous_submissions_count': existing_count,
+            'message': 'Submission processed successfully' + (' (resubmission)' if existing_count > 0 else '')
+        })
+        
+    except Exception as e:
+        print("\n" + "=" * 80)
+        print("❌ SUBMISSION PROCESSING FAILED")
+        print("=" * 80)
+        print(f"Error Type: {type(e).__name__}")
+        print(f"Error Message: {str(e)}")
+        print(f"\nFull Traceback:\n{traceback.format_exc()}")
+        print("=" * 80)
+        
+        return error_response(f'Submission processing failed: {str(e)}', 500)
+
+def error_response(message, status_code=500):
+    """Return standardized error response"""
+    return {
+        'statusCode': status_code,
+        'headers': {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+        },
+        'body': json.dumps({
+            'error': 'Submission processing failed',
+            'message': message,
+            'timestamp': datetime.now().isoformat()
+        })
+    }
+
+def success_response(data):
+    """Return standardized success response"""
+    return {
+        'statusCode': 200,
+        'headers': {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+        },
+        'body': json.dumps(data)
+    }
+
+def get_assignment_details(assignment_id):
+    """Get assignment details from DynamoDB"""
+    print(f"🔍 Getting assignment details for: {assignment_id}")
+    
+    try:
+        table = dynamodb.Table('Assignments-dev')
+        response = table.get_item(Key={'assignment_id': assignment_id})
+        
+        if 'Item' in response:
+            print(f"✅ Assignment found: {response['Item'].get('subject', 'Unknown')}")
+            return response['Item']
+        else:
+            print(f"❌ Assignment not found: {assignment_id}")
+            return None
+            
+    except Exception as e:
+        print(f"❌ DynamoDB error getting assignment: {str(e)}")
+        print(f"📋 Table name: Assignments-dev")
+        return None
+
+def is_assignment_active(assignment_details):
+    """Check if assignment is still accepting submissions"""
+    due_date_str = assignment_details.get('due_date')
+    if not due_date_str:
+        print("ℹ️ No due date set - assignment is always active")
+        return True
+    
+    try:
+        due_date = datetime.fromisoformat(due_date_str.replace('Z', '+00:00'))
+        current_time = datetime.now().astimezone()
+        
+        # Allow 1-hour grace period after due date
+        grace_period = due_date.timestamp() + 3600
+        
+        is_active = current_time.timestamp() <= grace_period
+        print(f"⏰ Due date: {due_date}, Current: {current_time}, Active: {is_active}")
+        
+        return is_active
+        
+    except Exception as e:
+        print(f"⚠️ Error checking assignment activity: {str(e)}")
+        print("ℹ️ Defaulting to active due to error")
+        return True
+
+def check_and_handle_existing_submission(assignment_id, student_id):
+    """Check for existing submission and handle according to policy"""
+    print(f"🔍 Checking for existing submissions: assignment_id={assignment_id}, student_id={student_id}")
+    
+    try:
+        table = dynamodb.Table('Submissions-dev')
+        
+        # Try using GSI first
+        try:
+            response = table.query(
+                IndexName='assignment_id-index',
+                KeyConditionExpression='assignment_id = :aid',
+                FilterExpression='student_id = :sid AND #status <> :superseded',
+                ExpressionAttributeNames={'#status': 'status'},
+                ExpressionAttributeValues={
+                    ':aid': assignment_id,
+                    ':sid': student_id,
+                    ':superseded': 'superseded'
+                }
+            )
+            
+            existing_submissions = response.get('Items', [])
+            print(f"📊 GSI Query result: Found {len(existing_submissions)} existing submission(s)")
+            
+        except Exception as gsi_error:
+            print(f"⚠️ GSI query failed: {str(gsi_error)}")
+            print("🔄 Falling back to scan operation (less efficient)")
+            
+            # Fallback to scan if GSI doesn't exist
+            response = table.scan(
+                FilterExpression='assignment_id = :aid AND student_id = :sid AND #status <> :superseded',
+                ExpressionAttributeNames={'#status': 'status'},
+                ExpressionAttributeValues={
+                    ':aid': assignment_id,
+                    ':sid': student_id,
+                    ':superseded': 'superseded'
+                }
+            )
+            existing_submissions = response.get('Items', [])
+            print(f"📊 Scan result: Found {len(existing_submissions)} existing submission(s)")
+        
+        if existing_submissions:
+            print(f"⚠️ Student {student_id} has {len(existing_submissions)} previous submission(s)")
+            
+            # Policy: Allow resubmission but mark old ones as 'superseded'
+            for idx, old_submission in enumerate(existing_submissions):
+                old_sub_id = old_submission['submission_id']
+                print(f"  └─ Marking submission {idx+1}/{len(existing_submissions)} as superseded: {old_sub_id}")
+                
+                try:
+                    table.update_item(
+                        Key={'submission_id': old_sub_id},
+                        UpdateExpression='SET #status = :status, updated_at = :updated',
+                        ExpressionAttributeNames={'#status': 'status'},
+                        ExpressionAttributeValues={
+                            ':status': 'superseded',
+                            ':updated': datetime.now().isoformat()
+                        }
+                    )
+                    print(f"  ✅ Successfully superseded: {old_sub_id}")
+                except Exception as update_error:
+                    print(f"  ❌ Failed to supersede {old_sub_id}: {str(update_error)}")
+            
+            print(f"✅ All {len(existing_submissions)} previous submission(s) processed")
+        else:
+            print(f"✅ No existing submissions found. This is the first submission.")
+        
+        return len(existing_submissions)
+        
+    except Exception as e:
+        print(f"❌ ERROR in check_and_handle_existing_submission: {str(e)}")
+        print("⚠️ Continuing without duplicate check (submission will be accepted)")
+        return 0
+
+def process_google_forms_submission(body, assignment_id, student_id, submission_id, student_name):
+    """Process Google Forms submission data"""
+    print("📝 Processing Google Forms submission...")
+    
+    if 'answers' not in body:
+        raise ValueError("Google Forms submission requires 'answers' field")
+    
+    answers = body['answers']
+    
+    # Validate answers structure
+    for i, answer in enumerate(answers):
+        if 'question_number' not in answer or 'answer_text' not in answer:
+            raise ValueError(f"Answer at index {i} must contain 'question_number' and 'answer_text'")
+    
+    submission_data = {
+        'submission_id': submission_id,
+        'assignment_id': assignment_id,
+        'student_id': student_id,
+        'student_name': student_name,
+        'submission_type': 'google_forms',
+        'submitted_at': datetime.now().isoformat(),
+        'answers': answers,
+        'metadata': {
+            'form_id': body.get('form_id', 'unknown'),
+            'response_id': body.get('response_id', 'unknown'),
+            'submission_timestamp': body.get('submission_timestamp', datetime.now().isoformat())
+        }
+    }
+    
+    print(f"✅ Processed Google Forms submission with {len(answers)} answers")
+    return submission_data
+
+def process_file_upload_submission(body, assignment_id, student_id, submission_id, student_name):
+    """Process file upload submission with text extraction"""
+    print("📎 Processing file upload submission...")
+    
+    required_file_fields = ['file_key', 'file_name', 'file_type']
+    missing_fields = [field for field in required_file_fields if field not in body]
+    if missing_fields:
+        raise ValueError(f"File upload requires: {', '.join(missing_fields)}")
+    
+    file_key = body['file_key']
+    file_name = body['file_name']
+    file_type = body['file_type']
+    
+    # Validate file type
+    allowed_types = ['pdf', 'docx', 'doc', 'txt', 'jpg', 'jpeg', 'png']
+    if file_type.lower() not in allowed_types:
+        raise ValueError(f"File type {file_type} not supported. Allowed types: {allowed_types}")
+    
+    # Extract text from different file types
+    extracted_text = extract_text_from_file(file_key, file_type)
+    
+    # Extract structured answers from the text
+    extracted_answers = extract_answers_from_text(extracted_text, assignment_id)
+    
+    submission_data = {
+        'submission_id': submission_id,
+        'assignment_id': assignment_id,
+        'student_id': student_id,
+        'student_name': student_name,
+        'submission_type': 'file_upload',
+        'submitted_at': datetime.now().isoformat(),
+        'file_info': {
+            'file_key': file_key,
+            'file_name': file_name,
+            'file_type': file_type,
+            'file_size': body.get('file_size', 0),
+            'extracted_text': extracted_text,
+            'extraction_status': 'success' if extracted_text else 'failed'
+        },
+        'extracted_answers': extracted_answers,
+        'metadata': {
+            'upload_method': body.get('upload_method', 'direct'),
+            'upload_timestamp': datetime.now().isoformat()
+        }
+    }
+    
+    print(f"✅ Processed file upload: {file_name} ({file_type})")
+    print(f"✅ Extracted {len(extracted_answers)} answers from file")
+    return submission_data
+
+def extract_text_from_file(file_key, file_type):
+    """Extract text from various file formats"""
+    print(f"🔍 Extracting text from {file_key} (type: {file_type})")
+    
+    try:
+        if file_type.lower() in ['pdf']:
+            return extract_text_from_pdf(file_key)
+        elif file_type.lower() in ['docx', 'doc']:
+            return extract_text_from_docx(file_key)
+        elif file_type.lower() in ['jpg', 'jpeg', 'png']:
+            return extract_text_from_image(file_key)
+        elif file_type.lower() == 'txt':
+            return extract_text_directly(file_key)
+        else:
+            print(f"⚠️ Unsupported file type: {file_type}, trying Textract fallback")
+            return extract_text_using_textract(file_key)
+    except Exception as e:
+        print(f"❌ Error extracting text from {file_key}: {str(e)}")
+        return ""
+
+def extract_text_from_pdf(file_key):
+    """Extract text from PDF using Textract"""
+    print(f"📄 Extracting text from PDF: {file_key}")
+    
+    try:
+        textract = boto3.client('textract')
+        response = textract.analyze_document(
+            Document={
+                'S3Object': {
+                    'Bucket': 'assignment-system-dev',
+                    'Name': file_key
+                }
+            },
+            FeatureTypes=['TABLES', 'FORMS']
+        )
+        
+        text = ""
+        for block in response.get('Blocks', []):
+            if block['BlockType'] in ['LINE', 'WORD']:
+                text += block.get('Text', '') + ' '
+        
+        print(f"✅ PDF extraction successful: {len(text)} characters")
+        return text.strip()
+        
+    except Exception as e:
+        print(f"❌ Textract PDF extraction failed: {str(e)}")
+        return ""
+
+def extract_text_from_docx(file_key):
+    """Extract text from Word documents"""
+    print(f"📝 Extracting text from DOCX: {file_key}")
+    
+    try:
+        # Try using python-docx if available in Lambda layer
+        try:
+            import docx
+            response = s3.get_object(Bucket='assignment-system-dev', Key=file_key)
+            file_content = response['Body'].read()
+            
+            doc = docx.Document(BytesIO(file_content))
+            full_text = []
+            for paragraph in doc.paragraphs:
+                full_text.append(paragraph.text)
+            
+            result = '\n'.join(full_text)
+            print(f"✅ DOCX extraction successful: {len(result)} characters")
+            return result
+            
+        except ImportError:
+            print("⚠️ python-docx not available, using Textract fallback")
+            return extract_text_using_textract(file_key)
+            
+    except Exception as e:
+        print(f"❌ DOCX extraction failed: {str(e)}, using Textract fallback")
+        return extract_text_using_textract(file_key)
+
+def extract_text_using_textract(file_key):
+    """Fallback text extraction using Textract"""
+    print(f"🔄 Using Textract fallback for: {file_key}")
+    
+    try:
+        textract = boto3.client('textract')
+        response = textract.analyze_document(
+            Document={
+                'S3Object': {
+                    'Bucket': 'assignment-system-dev',
+                    'Name': file_key
+                }
+            },
+            FeatureTypes=['TABLES', 'FORMS']
+        )
+        
+        text = ""
+        for block in response.get('Blocks', []):
+            if block['BlockType'] in ['LINE', 'WORD']:
+                text += block.get('Text', '') + ' '
+        
+        print(f"✅ Textract fallback successful: {len(text)} characters")
+        return text.strip()
+        
+    except Exception as e:
+        print(f"❌ Textract fallback also failed: {str(e)}")
+        return ""
+
+def extract_text_from_image(file_key):
+    """Extract text from handwritten images using Textract"""
+    print(f"🖼️ Extracting text from image: {file_key}")
+    
+    try:
+        textract = boto3.client('textract')
+        response = textract.detect_document_text(
+            Document={
+                'S3Object': {
+                    'Bucket': 'assignment-system-dev',
+                    'Name': file_key
+                }
+            }
+        )
+        
+        text = ""
+        for block in response.get('Blocks', []):
+            if block['BlockType'] == 'LINE':
+                text += block['Text'] + '\n'
+        
+        print(f"✅ Image text extraction successful: {len(text)} characters")
+        return text.strip()
+        
+    except Exception as e:
+        print(f"❌ Image text extraction failed: {str(e)}")
+        return ""
+
+def extract_text_directly(file_key):
+    """Extract text directly from text files"""
+    print(f"📝 Extracting text directly from: {file_key}")
+    
+    try:
+        response = s3.get_object(Bucket='assignment-system-dev', Key=file_key)
+        text = response['Body'].read().decode('utf-8')
+        print(f"✅ Direct text extraction successful: {len(text)} characters")
+        return text
+        
+    except Exception as e:
+        print(f"❌ Direct text extraction failed: {str(e)}")
+        return ""
+
+def extract_answers_from_text(extracted_text, assignment_id):
+    """Extract structured answers from unstructured text using AI"""
+    if not extracted_text:
+        print("❌ No text extracted, returning empty answers")
+        return []
+    
+    # Get assignment questions to understand what to look for
+    assignment_details = get_assignment_details(assignment_id)
+    if not assignment_details:
+        print("❌ Could not get assignment details")
+        return []
+    
+    questions = assignment_details.get('questions', [])
+    if not questions:
+        print("❌ No questions found in assignment")
+        return []
+    
+    print(f"🔍 Extracting answers for {len(questions)} questions")
+    extracted_answers = []
+    
+    for question in questions:
+        question_number = question.get('question_number')
+        question_text = question.get('question_text', '')
+        
+        if not question_number:
+            continue
+            
+        # Use AI to find the answer for this specific question
+        answer_text = find_answer_for_question(extracted_text, question_text, question_number)
+        
+        extracted_answers.append({
+            'question_number': question_number,
+            'answer_text': answer_text,
+            'extraction_confidence': 'high' if answer_text else 'low',
+            'question_text': question_text[:100]  # Store truncated question for reference
+        })
+    
+    print(f"✅ Extracted {len(extracted_answers)} answers")
+    return extracted_answers
+
+def find_answer_for_question(full_text, question_text, question_number):
+    """Use AI to locate the answer for a specific question"""
+    print(f"🤖 Using AI to find answer for question {question_number}")
+    
+    try:
+        bedrock = boto3.client('bedrock-runtime')
+        
+        prompt = f"""
+        Given the following assignment submission text and a specific question, 
+        extract ONLY the answer for that question. If the answer is not found, return "NOT_FOUND".
+        
+        QUESTION {question_number}: {question_text}
+        
+        SUBMISSION TEXT:
+        {full_text[:2000]}  # Limit text for token constraints
+        
+        Return only the answer text found in the submission, or "NOT_FOUND".
+        """
+        
+        response = bedrock.invoke_model(
+            modelId='amazon.titan-text-lite-v1',
+            body=json.dumps({
+                "inputText": prompt,
+                "textGenerationConfig": {
+                    "maxTokenCount": 300,
+                    "temperature": 0.1,
+                    "topP": 0.9
+                }
+            })
+        )
+        
+        result = json.loads(response['body'].read())
+        answer = result['results'][0]['outputText'].strip()
+        
+        print(f"✅ AI extraction for Q{question_number}: {'Found' if answer and answer != 'NOT_FOUND' else 'Not found'}")
+        return answer if answer and answer != "NOT_FOUND" else None
+        
+    except Exception as e:
+        print(f"❌ AI extraction failed for question {question_number}: {e}")
+        return None
+
+def store_submission_in_s3(submission_data, assignment_id, student_id, submission_id, context):
+    """Store submission data in S3"""
+    print(f"💾 Storing submission in S3...")
+    
+    bucket_name = "assignment-system-dev"
+    
+    # Sanitize student_id for S3 key (remove special characters)
+    sanitized_student_id = "".join(c for c in student_id if c.isalnum() or c in ['@', '.', '-', '_'])
+    
+    # Determine S3 key based on submission type
+    if submission_data['submission_type'] == 'google_forms':
+        file_key = f"submissions/pending/{assignment_id}/{sanitized_student_id}/submission_{submission_id}.json"
+    else:  # file_upload
+        file_key = f"submissions/pending/{assignment_id}/{sanitized_student_id}/submission_metadata_{submission_id}.json"
+    
+    try:
+        # Store submission metadata
+        s3.put_object(
+            Bucket=bucket_name,
+            Key=file_key,
+            Body=json.dumps(submission_data, indent=2),
+            ContentType='application/json'
+        )
+        
+        print(f"✅ Stored submission in S3: {file_key}")
+        return f"s3://{bucket_name}/{file_key}"
+        
+    except Exception as e:
+        print(f"❌ Failed to store submission in S3: {str(e)}")
+        raise
+
+def update_submission_tracking(assignment_id, student_id, student_name, submission_id, s3_location, submission_type):
+    """Update DynamoDB with submission tracking"""
+    print(f"📊 Updating DynamoDB tracking for submission: {submission_id}")
+    
+    try:
+        table = dynamodb.Table('Submissions-dev')
+        
+        item = {
+            'submission_id': submission_id,
+            'assignment_id': assignment_id,
+            'student_id': student_id,
+            'student_name': student_name,
+            's3_location': s3_location,
+            'submission_type': submission_type,
+            'status': 'submitted',
+            'submitted_at': datetime.now().isoformat(),
+            'evaluation_status': 'pending',
+            'updated_at': datetime.now().isoformat()
+        }
+        
+        table.put_item(Item=item)
+        print(f"✅ Updated submission tracking for {submission_id}")
+        
+    except Exception as e:
+        print(f"❌ Failed to update DynamoDB: {str(e)}")
+        raise
+
+def send_submission_confirmation(assignment_details, student_id, student_name, submission_data, is_resubmission=False):
+    """Send submission confirmation email to student"""
+    print(f"📧 Sending confirmation email to: {student_id}")
+    
+    try:
+        resubmission_text = " (Resubmission)" if is_resubmission else ""
+        subject = f"✅ Submission Confirmed{resubmission_text} - {assignment_details.get('subject', 'Assignment')}"
+        
+        # Include extraction info for file uploads
+        extraction_info = ""
+        if submission_data['submission_type'] == 'file_upload':
+            extracted_count = len(submission_data.get('extracted_answers', []))
+            extraction_info = f"\nAnswers Extracted: {extracted_count}"
+        
+        resubmission_notice = ""
+        if is_resubmission:
+            resubmission_notice = "\n⚠️ Note: This is a resubmission. Your previous submission has been superseded.\n"
+        
+        text_content = f"""
+SUBMISSION CONFIRMATION{resubmission_text}
+
+Dear {student_name},
+
+Your submission has been successfully received.{resubmission_notice}
+
+Assignment: {assignment_details.get('subject', 'Assignment')}
+Submission ID: {submission_data['submission_id']}
+Submitted At: {submission_data['submitted_at']}
+Submission Type: {submission_data['submission_type']}{extraction_info}
+
+Your submission is now queued for evaluation. You will receive your results once the evaluation is complete.
+
+Thank you for your submission!
+
+This is an automated confirmation. Please do not reply to this email.
+"""
+        
+        # Send confirmation email
+        lambda_client.invoke(
+            FunctionName='EmailService-dev',
+            InvocationType='Event',
+            Payload=json.dumps({
+                'email_type': 'submission_confirmation',
+                'to_emails': [student_id],
+                'subject': subject,
+                'text_content': text_content
+            })
+        )
+        print(f"✅ Sent submission confirmation to {student_name}")
+        
+    except Exception as e:
+        print(f"⚠️ Failed to send confirmation email: {str(e)}")
+        # Don't raise error - email failure shouldn't break submission
+
+print("✅ Lambda container initialization completed successfully")
