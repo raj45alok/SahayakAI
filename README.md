@@ -42,6 +42,9 @@ The project was developed as part of a hackathon to demonstrate **autonomous AI 
 ### 3. 🧾 Assignment Scheduling & Evaluation
 
 * Teachers schedule assignments stored in DynamoDB.
+* Teacher receives the modal answer with points were grades will be
+  awarded he can edit modify the modal answer and agent will evaluate
+  on that Basis
 * Students submit via Google Forms/Docs stored in S3.
 * Lambda parses responses, Bedrock evaluates answers.
 * Grades stored in DynamoDB and emailed to parents.
