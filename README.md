@@ -25,7 +25,7 @@ The project was developed as part of a hackathon to demonstrate **autonomous AI 
 * One subject delivered daily (~40–60 mins workload).
 * Students receive email notifications on delivery.
 
-**AWS Services:** Lambda, S3, DynamoDB, EventBridge, Bedrock, SES/Nodemailer.
+**AWS Services:** Lambda, S3, DynamoDB, EventBridge, Bedrock, Textract,Translate Nodemailer.
 
 ---
 
@@ -35,7 +35,7 @@ The project was developed as part of a hackathon to demonstrate **autonomous AI 
 * Bedrock generates MCQs, short/long questions aligned with NCERT.
 * Output as Word/PDF, stored in S3 for download.
 
-**AWS Services:** Lambda, S3, DynamoDB, Bedrock.
+**AWS Services:** Lambda, S3, DynamoDB, Bedrock,Textract.
 
 ---
 
@@ -46,7 +46,7 @@ The project was developed as part of a hackathon to demonstrate **autonomous AI 
 * Lambda parses responses, Bedrock evaluates answers.
 * Grades stored in DynamoDB and emailed to parents.
 
-**AWS Services:** Lambda, Bedrock, S3, DynamoDB, SES/Nodemailer.
+**AWS Services:** Lambda, Bedrock, S3, DynamoDB, Nodemailer.
 
 ---
 
@@ -56,7 +56,7 @@ The project was developed as part of a hackathon to demonstrate **autonomous AI 
 * Bedrock enriches content: simplify, elaborate, or visualize.
 * Returns editable enhanced content.
 
-**AWS Services:** Lambda, Bedrock, S3.
+**AWS Services:** Lambda, Bedrock, S3,Dynamo DB, Step Function .
 
 ---
 
@@ -72,7 +72,7 @@ The project was developed as part of a hackathon to demonstrate **autonomous AI 
 ## 🌟 Mini Features
 
 1. **Parent Reports** – Nodemailer sends weekly performance summaries.
-2. **Doubt Solver** – Students submit questions → Bedrock answers → unresolved queries flagged for teacher review.
+2. **Doubt Solver** – Students submit questions → Bedrock answers → unresolved queries flagged for teacher review and also Supported by rag powered by vector DB.
 3. **Automated Notifications** – EventBridge + Lambda trigger email alerts for every scheduled upload, assignment, or test.
 
 ---
@@ -115,17 +115,17 @@ Sahayak AI operates autonomously once teachers upload content:
 4. **Evaluates** submissions automatically.
 5. **Generates** reports without manual intervention.
 
-This behavior aligns with the hackathon requirement for *AI-driven autonomy*.
+
 
 ---
 
 ## 🧰 Tech Stack
 
 **Frontend:** React.js + Tailwind CSS + Firebase Auth
-**Backend:** AWS Lambda (Node.js), API Gateway, Bedrock SDK
+**Backend:** AWS Lambda (Python), API Gateway, Bedrock SDK
 **Database:** DynamoDB
 **Storage:** AWS S3
-**AI/ML:** AWS Bedrock (Claude, Titan)
+**AI/ML:** AWS Bedrock (Nova, Titan and Deepseek)
 **Email/Notifications:** AWS SES / Nodemailer
 **Integration:** Google Forms + YouTube Data API
 
@@ -135,7 +135,7 @@ This behavior aligns with the hackathon requirement for *AI-driven autonomy*.
 
 ### 🔧 Prerequisites
 
-* Node.js 18+
+* Node.js 18+ and Python 3.9+
 * AWS CLI configured
 * Firebase project + service credentials
 * IAM permissions for Lambda, S3, DynamoDB, EventBridge, SES
@@ -172,7 +172,7 @@ SMTP_PASS=<your_app_password>
 #### 4. Run Frontend (React)
 
 ```bash
-npm run dev
+npm  start
 ```
 
 #### 5. Deploy Lambda Functions
@@ -200,7 +200,7 @@ aws events put-rule --schedule-expression "rate(1 day)" --name sahayak-daily-del
 | --------------- | ---------------------------------------------------------- |
 | Content Upload  | Upload sample file → Check S3 + DynamoDB entry             |
 | Worksheet Gen   | Run Lambda `generateWorksheet` manually → Check output doc |
-| Assignment Eval | Submit Google Form → Observe Bedrock evaluation JSON       |
+| Assignment Eval | Submit Word file(Solution) → Observe Bedrock evaluation JSON       |
 | Notifications   | Check student & parent email delivery                      |
 | Dashboard       | View updated metrics in the app                            |
 
@@ -231,7 +231,7 @@ Screenshots from the working app are available in the `/screenshots` folder.
 ## 🚀 Future Enhancements
 
 * Personalized student recommendations
-* Multilingual support (Hindi/English)
+* Multilingual support (Hindi/English -> Regional languages)
 * AI-based plagiarism detection for assignments
 
 ---
