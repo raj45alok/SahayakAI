@@ -103,7 +103,7 @@ SES/Nodemailer
 | **S3**             | Stores study packs, worksheets, and assignments     |
 | **DynamoDB**       | Metadata and user/assignment tracking               |
 | **Bedrock**        | AI enrichment, worksheet & grading generation       |
-| **SES/Nodemailer** | Notifications and parent reports                    |
+| **Nodemailer**     | Notifications and parent reports                        |
 | **Firebase Auth**  | Authentication for teachers and students            |
 
 ---
