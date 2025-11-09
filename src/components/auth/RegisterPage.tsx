@@ -85,12 +85,20 @@ export function RegisterPage() {
       console.log('Additional data:', additionalData);
       
       try {
-        const dbUser = await dynamoDBService.saveUser(
-          firebaseUser, 
-          userType as 'teacher' | 'student', 
-          additionalData
-        );
-        console.log('✅ DynamoDB save successful:', dbUser);
+       const response = await fetch('http://localhost:3001/api/saveUser', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ firebaseUser, userType, additionalData }),
+         });
+
+         const data = await response.json();
+         if (!response.ok) {
+        throw new Error(data.error || 'Failed to save user to database');
+        }
+
+          console.log('✅ DynamoDB save successful:', data);
+          const dbUser = { userId: data.userId }; // mimic shape expected later
+
         
         // Step 3: Prepare user data for app context
         const userData = {

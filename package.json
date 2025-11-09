@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.899.0",
+    "@aws-sdk/client-dynamodb": "^3.927.0",
     "@aws-sdk/lib-dynamodb": "^3.899.0",
     "@chakra-ui/react": "^3.27.0",
     "@emotion/react": "^11.14.0",
@@ -50,6 +50,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "dotenv": "^17.2.3",
     "embla-carousel-react": "^8.6.0",
     "firebase": "^12.3.0",
     "framer-motion": "^12.23.22",
@@ -75,7 +76,8 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "vercel-dev": "vercel dev",
+    "build": "set CI=false && react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -98,6 +100,7 @@
     ]
   },
   "devDependencies": {
-    "@types/uuid": "^10.0.0"
+    "@types/uuid": "^10.0.0",
+    "@vercel/node": "^5.5.5"
   }
 }
