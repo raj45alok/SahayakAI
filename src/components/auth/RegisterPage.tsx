@@ -86,7 +86,7 @@ export function RegisterPage() {
       
       try {
        // ✅ FIXED — works in both local & production environments
-           await fetch("/api/saveUser", {
+          const response = await fetch("/api/saveUser", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
