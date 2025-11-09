@@ -85,11 +85,17 @@ export function RegisterPage() {
       console.log('Additional data:', additionalData);
       
       try {
-       const response = await fetch('http://localhost:3001/api/saveUser', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ firebaseUser, userType, additionalData }),
-         });
+       // ✅ FIXED — works in both local & production environments
+           await fetch("/api/saveUser", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                    firebaseUser,
+                    userType,
+                    additionalData,
+                   }),
+                 });
+
 
          const data = await response.json();
          if (!response.ok) {
