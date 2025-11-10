@@ -1,8 +1,9 @@
 // File: api/saveUser.js
-const { DynamoDBClient, PutItemCommand } = require("@aws-sdk/client-dynamodb");
+import crypto from "crypto";
+import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
 
 export default async function handler(req, res) {
-  // Allow only POST requests
+  // Only allow POST requests
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method Not Allowed" });
   }
@@ -12,11 +13,12 @@ export default async function handler(req, res) {
     const { firebaseUser, userType, additionalData } =
       typeof req.body === "string" ? JSON.parse(req.body) : req.body;
 
+    // Validate required fields
     if (!firebaseUser?.uid || !userType) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // DynamoDB client
+    // Create DynamoDB client
     const client = new DynamoDBClient({
       region: process.env.AWS_REGION,
       credentials: {
@@ -28,10 +30,10 @@ export default async function handler(req, res) {
     // Generate user ID
     const userId =
       userType === "student"
-        ? `STU-${require("crypto").randomUUID().slice(0, 8)}`
-        : `TCH-${require("crypto").randomUUID().slice(0, 8)}`;
+        ? `STU-${crypto.randomUUID().slice(0, 8)}`
+        : `TCH-${crypto.randomUUID().slice(0, 8)}`;
 
-    // Prepare DynamoDB params
+    // Prepare item for DynamoDB
     const params = {
       TableName: process.env.DYNAMO_USERS_TABLE,
       Item: {
@@ -45,6 +47,7 @@ export default async function handler(req, res) {
       },
     };
 
+    // Store in DynamoDB
     await client.send(new PutItemCommand(params));
 
     console.log("✅ User saved successfully:", userId);
