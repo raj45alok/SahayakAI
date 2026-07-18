@@ -237,15 +237,5 @@ Screenshots from the working app are available in the `/screenshots` folder.
 * Multilingual support (Hindi/English -> Regional languages)
 * AI-based plagiarism detection for assignments
 
----
-
-## 🏁 Acknowledgements
-
-Developed for the **AWS AI Hackathon** to showcase educational impact through AI autonomy.
-
-**Contributors:** Team Sahayak AI
-**Tech Stack:** AWS Bedrock · DynamoDB · Lambda · EventBridge · React · Firebase
-
----
 
 > ✨ *"Sahayak AI — Your Intelligent Teaching Partner."*
