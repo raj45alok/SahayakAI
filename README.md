@@ -3,8 +3,7 @@
 **An AI-powered Classroom Assistant for Grades 6–8**
 Empowering teachers and students through automation, AI enrichment, and intelligent scheduling using **AWS Bedrock**, **Lambda**, and **Firebase**.
 
-🔗 **Live Demo:** [sahayak-ai-sigma.vercel.app](https://sahayak-ai-sigma.vercel.app/)
-▶️ **YouTube Demo:** [Watch on YouTube](https://youtu.be/YFTC39W-VJA)
+
 
 ---
 
